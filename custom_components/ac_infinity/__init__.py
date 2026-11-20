@@ -31,6 +31,26 @@ PLATFORMS: list[Platform] = [
 _LOGGER = logging.getLogger(__name__)
 
 
+# Trial build only, not for upstream. Home Assistant cannot install a patched
+# copy of ac-infinity-ble here, so this applies the change from
+# micsco/ac-infinity-ble fix/connect-timeout-outlasts-retry-budget in memory.
+def _apply_connect_timeout_fix() -> None:
+    import functools
+
+    from ac_infinity_ble import device as ble_device
+
+    if getattr(ble_device, "CONNECT_ATTEMPTS", None) is not None:
+        return  # The installed library already has the fix.
+    ble_device.CONNECT_TIMEOUT = 90
+    ble_device.establish_connection = functools.partial(
+        ble_device.establish_connection, max_attempts=3
+    )
+    _LOGGER.info("Trial: connect timeout 90 s with 3 attempts")
+
+
+_apply_connect_timeout_fix()
+
+
 async def async_migrate_entry(
     hass: HomeAssistant, entry: ACInfinityConfigEntry
 ) -> bool:
